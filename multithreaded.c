@@ -9,6 +9,7 @@
 #include <sys/sysinfo.h>
 #include <threads.h>
 
+#define MADV_POPULATE_WRITE 23
 #define MAP_HUGE_2MB (21 << MAP_HUGE_SHIFT)
 
 struct args {
