@@ -1,13 +1,17 @@
 #define _GNU_SOURCE
 
 #include "time.h"
+#include <fcntl.h>
 #include <sched.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <threads.h>
+#include <unistd.h>
 
 #define MADV_POPULATE_WRITE 23
 #define MAP_HUGE_2MB (21 << MAP_HUGE_SHIFT)
@@ -63,13 +67,13 @@ void run(char *addr, int threads) {
 void err_usage_exit(const char *err) {
   fprintf(stderr, "\e[1;31merror\e[0m: %s\n\n", err);
   printf("\
-USAGE: ./prog <MODE> <THREAD_COUNT> [PATH]\n\n\
+USAGE: ./prog <MODE> <THREAD_COUNT>\n\n\
 MODE:\n\
     anon   Mmaps an anonymous, shared 4GB region of memory, and immediately\n\
            prefaults it all using madvise (one call per core).\n\n\
     file   Mmaps a file-backed 4GB region of memory and prefaults it.\n\
-           Requires a PATH argument, at which the file is created. If the\n\
-           file exists, we check that it's 4GB large, and fault it in.");
+           Creates a file test.data in the current directory. If the\n\
+           file exists, we re-use it, and prefault it in.");
   exit(1);
 }
 
@@ -87,17 +91,25 @@ int main(int argc, char *argv[]) {
   }
 
   char *addr;
-  switch (argc) {
-  case 3:
+  if (strcmp("anon", argv[1]) == 0) {
     addr = (char *)mmap(0, MAP_SIZE, PROT_WRITE | PROT_READ,
                         MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    break;
-  case 4:
-    addr = (char *)mmap(0, MAP_SIZE, PROT_WRITE | PROT_READ,
-                        MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    break;
-  default:
-    err_usage_exit("too many arguments given");
+  } else if (strcmp("file", argv[1]) == 0) {
+    int fd = open("test.data", O_RDWR);
+    /* if doesn't exist, create file and try again */
+    if (fd < 0) {
+      printf("creating 4GB of test.data file...\n");
+      fd = open("test.data", O_RDWR | O_CREAT, 0666);
+      if (fd < 0) {
+        fprintf(stderr, "fatal: couldn't open file, code %d", fd);
+        exit(1);
+      }
+      ftruncate(fd, MAP_SIZE);
+    }
+    addr =
+        (char *)mmap(0, MAP_SIZE, PROT_WRITE | PROT_READ, MAP_PRIVATE, fd, 0);
+  } else {
+    err_usage_exit("unknown command");
   }
 
   if (addr == MAP_FAILED) {
