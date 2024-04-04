@@ -73,7 +73,7 @@ MODE:\n\
            prefaults it all using madvise (one call per core).\n\n\
     file   Mmaps a file-backed 4GB region of memory and prefaults it.\n\
            Creates a file test.data in the current directory. If the\n\
-           file exists, we re-use it, and prefault it in.");
+           file exists, we re-use it, and prefault it in.\n");
   exit(1);
 }
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
 
   int threads = atoi(argv[2]);
   if ((threads & -threads) != threads) {
-    fprintf(stderr, "\e[1;31merror\e[0m: thread count must be power-of-two.");
+    fprintf(stderr, "\e[1;31merror\e[0m: thread count must be power-of-two.\n");
     exit(1);
   }
 
